@@ -7,3 +7,5 @@ There are several alternatives to do reverse geocoding. In this repo we will exp
 
 - Using API 
 - Using shapefile map data
+
+We will use data from [Food Delivery Dataset](https://www.kaggle.com/datasets/gauravmalik26/food-delivery-dataset) acquired from Kaggle. A quick sampling of the address coordinates inform me that the delivery service is located in India. The map shapefile data is acquired from [GADM](https://gadm.org/download_country.html).
