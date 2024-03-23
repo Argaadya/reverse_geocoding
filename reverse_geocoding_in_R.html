@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Arga Adyatama">
+<meta name="dcterms.date" content="2024-03-23">
+
+<title>Reverse Geocoding: Acquiring Address from Location Coordinates</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="reverse_geocoding_in_R_files/libs/clipboard/clipboard.min.js"></script>
+<script src="reverse_geocoding_in_R_files/libs/quarto-html/quarto.js"></script>
+<script src="reverse_geocoding_in_R_files/libs/quarto-html/popper.min.js"></script>
+<script src="reverse_geocoding_in_R_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="reverse_geocoding_in_R_files/libs/quarto-html/anchor.min.js"></script>
+<link href="reverse_geocoding_in_R_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="reverse_geocoding_in_R_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="reverse_geocoding_in_R_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="reverse_geocoding_in_R_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="reverse_geocoding_in_R_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+<link href="reverse_geocoding_in_R_files/libs/pagedtable-1.1/css/pagedtable.css" rel="stylesheet">
+<script src="reverse_geocoding_in_R_files/libs/pagedtable-1.1/js/pagedtable.js"></script>
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#library" id="toc-library" class="nav-link" data-scroll-target="#library">Library</a></li>
+  <li><a href="#data-understanding" id="toc-data-understanding" class="nav-link" data-scroll-target="#data-understanding">Data Understanding</a>
+  <ul class="collapse">
+  <li><a href="#read-data" id="toc-read-data" class="nav-link" data-scroll-target="#read-data">Read Data</a></li>
+  <li><a href="#inspect-data" id="toc-inspect-data" class="nav-link" data-scroll-target="#inspect-data">Inspect Data</a></li>
+  </ul></li>
+  <li><a href="#visualize-geospatial-data" id="toc-visualize-geospatial-data" class="nav-link" data-scroll-target="#visualize-geospatial-data">Visualize Geospatial Data</a>
+  <ul class="collapse">
+  <li><a href="#shapefile-data" id="toc-shapefile-data" class="nav-link" data-scroll-target="#shapefile-data">Shapefile Data</a></li>
+  <li><a href="#data-visualization" id="toc-data-visualization" class="nav-link" data-scroll-target="#data-visualization">Data Visualization</a></li>
+  </ul></li>
+  <li><a href="#reverse-geocoding" id="toc-reverse-geocoding" class="nav-link" data-scroll-target="#reverse-geocoding">Reverse Geocoding</a>
+  <ul class="collapse">
+  <li><a href="#online-method-with-tidygeocoder" id="toc-online-method-with-tidygeocoder" class="nav-link" data-scroll-target="#online-method-with-tidygeocoder">Online method with <code>tidygeocoder</code></a></li>
+  <li><a href="#offline-method-using-the-shapefile" id="toc-offline-method-using-the-shapefile" class="nav-link" data-scroll-target="#offline-method-using-the-shapefile">Offline Method Using the Shapefile</a>
+  <ul class="collapse">
+  <li><a href="#spatial-filter" id="toc-spatial-filter" class="nav-link" data-scroll-target="#spatial-filter">Spatial Filter</a></li>
+  <li><a href="#distance-to-nearest-border" id="toc-distance-to-nearest-border" class="nav-link" data-scroll-target="#distance-to-nearest-border">Distance to Nearest Border</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#data-analysis" id="toc-data-analysis" class="nav-link" data-scroll-target="#data-analysis">Data Analysis</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Reverse Geocoding: Acquiring Address from Location Coordinates</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Arga Adyatama </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">March 23, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p><strong>Geocoding</strong> is the process of converting addresses into geographic coordinates (latitude and longitude). You see their familiar form whenever you search for your local restaurant or place to visit. There is also something called <strong>Reverse Geocoding</strong> where you want to convert latitude and longitude into readable addresses. Both are equally important, especially for industries related to moving goods or people, e.g.&nbsp;food delivery service or taxi service. Reverse geocoding is essential if you want to understand the underlying pattern of customer behavior. For example, as a food delivery service or a food merchant offers or partners with a delivery service, you want to know where most of your customers are located based on their delivery addresses.</p>
+<p>There are several alternatives to do reverse geocoding. In this post we will explore 2 options on doing reverse geocoding and see their pros and cons:</p>
+<ul>
+<li>Using API via <code>tidygeocoder</code> package</li>
+<li>Using shapefile map data</li>
+</ul>
+<p>All source code and dataset for this article are provided on <a href="https://github.com/Argaadya/reverse_geocoding">my github repo</a>.</p>
+</section>
+<section id="library" class="level1">
+<h1>Library</h1>
+<p>The following are the required packages that will be used throughout the article. It consists of packages for data wrangling, clustering, and data visualization.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="co"># data wrangling</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="fu">library</span>(lubridate)</span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="fu">library</span>(janitor)</span>
+<span id="cb1-5"><a href="#cb1-5"></a></span>
+<span id="cb1-6"><a href="#cb1-6"></a><span class="co"># geocoding</span></span>
+<span id="cb1-7"><a href="#cb1-7"></a><span class="fu">library</span>(tidygeocoder)</span>
+<span id="cb1-8"><a href="#cb1-8"></a></span>
+<span id="cb1-9"><a href="#cb1-9"></a><span class="co"># Read and process shapefile data</span></span>
+<span id="cb1-10"><a href="#cb1-10"></a><span class="fu">library</span>(sf)</span>
+<span id="cb1-11"><a href="#cb1-11"></a></span>
+<span id="cb1-12"><a href="#cb1-12"></a><span class="co"># data visualization</span></span>
+<span id="cb1-13"><a href="#cb1-13"></a><span class="fu">library</span>(scales)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+</section>
+<section id="data-understanding" class="level1">
+<h1>Data Understanding</h1>
+<p>We will use data from <a href="https://www.kaggle.com/datasets/gauravmalik26/food-delivery-dataset">Food Delivery Dataset</a> acquired from Kaggle. A quick sampling of the address coordinates inform me that the delivery service is located in India. The following is the description about the data.</p>
+<blockquote class="blockquote">
+<p>Food delivery is a courier service in which a restaurant, store, or independent food-delivery company delivers food to a customer. An order is typically made either through a restaurant or grocer’s website or mobile app, or through a food ordering company. The delivered items can include entrees, sides, drinks, desserts, or grocery items and are typically delivered in boxes or bags. The delivery person will normally drive a car, but in bigger cities where homes and restaurants are closer together, they may use bikes or motorized scooters.</p>
+</blockquote>
+<section id="read-data" class="level2">
+<h2 class="anchored" data-anchor-id="read-data">Read Data</h2>
+<p>First we will read and inspect the delivery data.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>df_delivery <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/train.csv"</span>, <span class="at">show_col_types =</span> F) <span class="sc">%&gt;%</span> </span>
+<span id="cb2-2"><a href="#cb2-2"></a>  <span class="fu">clean_names</span>()</span>
+<span id="cb2-3"><a href="#cb2-3"></a></span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="fu">glimpse</span>(df_delivery)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 45,593
+Columns: 20
+$ id                          &lt;chr&gt; "0x4607", "0xb379", "0x5d6d", "0x7a6a", "0…
+$ delivery_person_id          &lt;chr&gt; "INDORES13DEL02", "BANGRES18DEL02", "BANGR…
+$ delivery_person_age         &lt;dbl&gt; 37, 34, 23, 38, 32, 22, 33, 35, 22, 36, 21…
+$ delivery_person_ratings     &lt;dbl&gt; 4.9, 4.5, 4.4, 4.7, 4.6, 4.8, 4.7, 4.6, 4.…
+$ restaurant_latitude         &lt;dbl&gt; 22.74505, 12.91304, 12.91426, 11.00367, 12…
+$ restaurant_longitude        &lt;dbl&gt; 75.89247, 77.68324, 77.67840, 76.97649, 80…
+$ delivery_location_latitude  &lt;dbl&gt; 22.76505, 13.04304, 12.92426, 11.05367, 13…
+$ delivery_location_longitude &lt;dbl&gt; 75.91247, 77.81324, 77.68840, 77.02649, 80…
+$ order_date                  &lt;chr&gt; "19-03-2022", "25-03-2022", "19-03-2022", …
+$ time_orderd                 &lt;chr&gt; "11:30:00", "19:45:00", "08:30:00", "18:00…
+$ time_order_picked           &lt;time&gt; 11:45:00, 19:50:00, 08:45:00, 18:10:00, 1…
+$ weatherconditions           &lt;chr&gt; "conditions Sunny", "conditions Stormy", "…
+$ road_traffic_density        &lt;chr&gt; "High", "Jam", "Low", "Medium", "High", "J…
+$ vehicle_condition           &lt;dbl&gt; 2, 2, 0, 0, 1, 0, 1, 2, 0, 2, 1, 1, 0, 1, …
+$ type_of_order               &lt;chr&gt; "Snack", "Snack", "Drinks", "Buffet", "Sna…
+$ type_of_vehicle             &lt;chr&gt; "motorcycle", "scooter", "motorcycle", "mo…
+$ multiple_deliveries         &lt;dbl&gt; 0, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 0, 1, …
+$ festival                    &lt;chr&gt; "No", "No", "No", "No", "No", "No", "No", …
+$ city                        &lt;chr&gt; "Urban", "Metropolitian", "Urban", "Metrop…
+$ time_taken_min              &lt;chr&gt; "(min) 24", "(min) 33", "(min) 26", "(min)…</code></pre>
+</div>
+</div>
+<p>Data Description:</p>
+<ul>
+<li><code>id</code>: The order id</li>
+<li><code>delivery_person_id</code>: The id of the delivery person</li>
+<li><code>delivery_person_id</code>: The age of the delivery person</li>
+<li><code>delivery_person_ratings</code>: The overall performance rating of the delivery person</li>
+<li><code>restautrant_latitude</code>: Latitude coordinate of the restaurant</li>
+<li><code>restautrant_longitude</code>: Longitude coordinate of the restaurant</li>
+<li><code>delivery_location_latitude</code>: Latitude coordinate of the delivery location</li>
+<li><code>delivery_location_longitude</code>: Longitude coordinate of the delivery location</li>
+<li><code>order_date</code>: Longitude coordinate of the delivery location</li>
+<li><code>time_orderd</code>: Time of the delivery order</li>
+<li><code>time_order_picked</code>: Time the delivery is picked by the delivery person</li>
+<li><code>weatherconditions</code>: The weather condition during delivery process</li>
+<li><code>road_traffic_density</code>: The traffic density during delivery process</li>
+<li><code>vehicle_condition</code>: The condition of the vehicle</li>
+<li><code>type_of_order</code>: Type of the order (Snacks, Drinks, Buffet, Meal)</li>
+<li><code>type_of_vehicle</code>: Type of the vehicle</li>
+<li><code>multiple_deliveries</code>: Flagging code of multiple deliveries status</li>
+<li><code>festival</code>: Flagging if the delivery happened during festival</li>
+<li><code>city</code>: The category of the city (Urban, Metropolitan, Semi-Urban)</li>
+<li><code>time_taken_min</code>: Duration of deliveries</li>
+</ul>
+</section>
+<section id="inspect-data" class="level2">
+<h2 class="anchored" data-anchor-id="inspect-data">Inspect Data</h2>
+<p>Let’s first check if the data has duplicated order id. If there are more than one observation for an order id we may want to inspect the data further.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>df_delivery <span class="sc">%&gt;%</span> </span>
+<span id="cb4-2"><a href="#cb4-2"></a>  <span class="fu">group_by</span>(id) <span class="sc">%&gt;%</span> </span>
+<span id="cb4-3"><a href="#cb4-3"></a>  <span class="fu">filter</span>(<span class="fu">n</span>() <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb4-4"><a href="#cb4-4"></a>  <span class="fu">nrow</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0</code></pre>
+</div>
+</div>
+<p>There is no duplicated order id. Next we check the summary of the data to see if there is anything unusual, especially for the delivery location coordinates.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a>df_delivery <span class="sc">%&gt;%</span> </span>
+<span id="cb6-2"><a href="#cb6-2"></a>  <span class="fu">select_at</span>(<span class="fu">vars</span>(<span class="fu">contains</span>(<span class="st">"delivery_location"</span>))) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-3"><a href="#cb6-3"></a>  <span class="fu">summary</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> delivery_location_latitude delivery_location_longitude
+ Min.   : 0.01              Min.   : 0.01              
+ 1st Qu.:12.99              1st Qu.:73.28              
+ Median :18.63              Median :76.00              
+ Mean   :17.47              Mean   :70.85              
+ 3rd Qu.:22.79              3rd Qu.:78.11              
+ Max.   :31.05              Max.   :88.56              </code></pre>
+</div>
+</div>
+<p>Based on the summary, there may some data with weird coordinates that has close to 0 latitude and 0 longitude (if you search them, it is located on the west side of Africa). We will try to visualize all of the data to better see the distribution of the delivery locations.</p>
+</section>
+</section>
+<section id="visualize-geospatial-data" class="level1">
+<h1>Visualize Geospatial Data</h1>
+<section id="shapefile-data" class="level2">
+<h2 class="anchored" data-anchor-id="shapefile-data">Shapefile Data</h2>
+<p>To have clear visualization of a geospatial data, we will need a shapefile that consists of polygons that represent the line border of a country or a region. We will use the Indian map data acquired from <a href="https://gadm.org/download_country.html">GADM</a>. You can download the <em>shapefile</em> format and unzip them. The shapefile of the India country will give you several layers of border comprising of the national border, the state border, and go more detailed into city or regional border.</p>
+<p>The following code will read the layer 1 or the state level border using the <em>st_read()</em> function from the <code>sf</code> package.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a>df_map_1 <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="at">dsn =</span> <span class="st">"data/gadm41_IND_shp/"</span>, <span class="at">layer =</span> <span class="st">"gadm41_IND_1"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+</section>
+<section id="data-visualization" class="level2">
+<h2 class="anchored" data-anchor-id="data-visualization">Data Visualization</h2>
+<p>To visualize the spatial data, we simply use the <code>ggplot</code> package. The <em>geom_sf()</em> will draw the map borders while the <em>geom_point()</em> show all of the delivery locations.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a>df_map_1 <span class="sc">%&gt;%</span> </span>
+<span id="cb9-2"><a href="#cb9-2"></a>  </span>
+<span id="cb9-3"><a href="#cb9-3"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb9-4"><a href="#cb9-4"></a>  <span class="fu">geom_sf</span>(<span class="at">color =</span> <span class="st">"gray"</span>, <span class="at">lwd =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb9-5"><a href="#cb9-5"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> df_delivery,</span>
+<span id="cb9-6"><a href="#cb9-6"></a>             <span class="fu">aes</span>(<span class="at">x =</span> delivery_location_longitude,</span>
+<span id="cb9-7"><a href="#cb9-7"></a>                 <span class="at">y =</span> delivery_location_latitude</span>
+<span id="cb9-8"><a href="#cb9-8"></a>                 ),</span>
+<span id="cb9-9"><a href="#cb9-9"></a>             </span>
+<span id="cb9-10"><a href="#cb9-10"></a>             <span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">color =</span> <span class="st">"dodgerblue"</span></span>
+<span id="cb9-11"><a href="#cb9-11"></a>             ) <span class="sc">+</span></span>
+<span id="cb9-12"><a href="#cb9-12"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb9-13"><a href="#cb9-13"></a>  </span>
+<span id="cb9-14"><a href="#cb9-14"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb9-15"><a href="#cb9-15"></a>       <span class="at">y =</span> <span class="cn">NULL</span></span>
+<span id="cb9-16"><a href="#cb9-16"></a>       )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="reverse_geocoding_in_R_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Based on the plot, we can see that anomalies only happen at the coordinates around 0 latitude and 0 longitude, let’s check these further.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a>df_1 <span class="ot">&lt;-</span> df_delivery <span class="sc">%&gt;%</span> </span>
+<span id="cb10-2"><a href="#cb10-2"></a>  <span class="fu">filter</span>(delivery_location_longitude <span class="sc">&lt;</span> <span class="dv">60</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb10-3"><a href="#cb10-3"></a>  <span class="fu">select_at</span>(<span class="fu">vars</span>(<span class="fu">contains</span>(<span class="st">"delivery_location"</span>))) </span>
+<span id="cb10-4"><a href="#cb10-4"></a></span>
+<span id="cb10-5"><a href="#cb10-5"></a><span class="fu">cat</span>(<span class="st">"Number of anomalies: "</span>, <span class="fu">nrow</span>(df_1), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Number of anomalies:  3640 </code></pre>
+</div>
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a>df_1 <span class="sc">%&gt;%</span> </span>
+<span id="cb12-2"><a href="#cb12-2"></a>  <span class="fu">summary</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> delivery_location_latitude delivery_location_longitude
+ Min.   :0.01000            Min.   :0.01000            
+ 1st Qu.:0.03000            1st Qu.:0.03000            
+ Median :0.06000            Median :0.06000            
+ Mean   :0.06302            Mean   :0.06302            
+ 3rd Qu.:0.09000            3rd Qu.:0.09000            
+ Max.   :0.13000            Max.   :0.13000            </code></pre>
+</div>
+</div>
+<p>There are around 3600 rows with anomaly location. Perhaps this was a faulty location where the system failed to properly locate the customer location. We can get rid of them for now.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a>df_clean <span class="ot">&lt;-</span> df_delivery <span class="sc">%&gt;%</span> </span>
+<span id="cb14-2"><a href="#cb14-2"></a>  <span class="fu">filter</span>(delivery_location_latitude <span class="sc">&gt;</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Let’s redraw our map.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1"></a>df_map_1 <span class="sc">%&gt;%</span> </span>
+<span id="cb15-2"><a href="#cb15-2"></a>  </span>
+<span id="cb15-3"><a href="#cb15-3"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb15-4"><a href="#cb15-4"></a>  <span class="fu">geom_sf</span>(<span class="at">color =</span> <span class="st">"gray"</span>, <span class="at">lwd =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb15-5"><a href="#cb15-5"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> df_clean,</span>
+<span id="cb15-6"><a href="#cb15-6"></a>             <span class="fu">aes</span>(<span class="at">x =</span> delivery_location_longitude,</span>
+<span id="cb15-7"><a href="#cb15-7"></a>                 <span class="at">y =</span> delivery_location_latitude</span>
+<span id="cb15-8"><a href="#cb15-8"></a>                 ),</span>
+<span id="cb15-9"><a href="#cb15-9"></a>             </span>
+<span id="cb15-10"><a href="#cb15-10"></a>             <span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">color =</span> <span class="st">"dodgerblue"</span></span>
+<span id="cb15-11"><a href="#cb15-11"></a>             ) <span class="sc">+</span></span>
+<span id="cb15-12"><a href="#cb15-12"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb15-13"><a href="#cb15-13"></a>  </span>
+<span id="cb15-14"><a href="#cb15-14"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb15-15"><a href="#cb15-15"></a>       <span class="at">y =</span> <span class="cn">NULL</span></span>
+<span id="cb15-16"><a href="#cb15-16"></a>       )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="reverse_geocoding_in_R_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Here we can see that the customers are concentrated into certain areas. We want to know the name of the area, perhaps in a region or even district level using reverse geocoding.</p>
+</section>
+</section>
+<section id="reverse-geocoding" class="level1">
+<h1>Reverse Geocoding</h1>
+<p>Reverse geocoding can be achieved using 2 methods:</p>
+<ul>
+<li>Online method with API via <code>tidygeocoder</code> package</li>
+<li>Offline method with shapefile map data</li>
+</ul>
+<section id="online-method-with-tidygeocoder" class="level2">
+<h2 class="anchored" data-anchor-id="online-method-with-tidygeocoder">Online method with <code>tidygeocoder</code></h2>
+<p>Online method require us to connect with the API from a geocoding service. The <code>tidygeocoder</code> package make it easier for us to connect the API and do the geocoding process. The list of the geocoding service covered by the package can be accessed <a href="https://jessecambon.github.io/tidygeocoder/articles/geocoder_services.html">here</a>.</p>
+<p>The online method is a great alternative if you want the correct and proper address based on up to date data. However, it has a drawback to consider. Since we are using API access, we rely on the API usage rate limit and some services require us to create an API key beforehand. The following is the example of using the <strong>Nominatim</strong> service with the Open Street Map data to reverse geocode the first 10 rows of our delivery data.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a>t_1 <span class="ot">&lt;-</span> <span class="fu">Sys.time</span>()</span>
+<span id="cb16-2"><a href="#cb16-2"></a></span>
+<span id="cb16-3"><a href="#cb16-3"></a>df_reverse_tidy <span class="ot">&lt;-</span> df_clean <span class="sc">%&gt;%</span> </span>
+<span id="cb16-4"><a href="#cb16-4"></a>  <span class="fu">head</span>(<span class="dv">10</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-5"><a href="#cb16-5"></a>  <span class="fu">reverse_geocode</span>(<span class="at">lat =</span> delivery_location_latitude,</span>
+<span id="cb16-6"><a href="#cb16-6"></a>                  <span class="at">long =</span> delivery_location_longitude,</span>
+<span id="cb16-7"><a href="#cb16-7"></a>                  <span class="at">method =</span> <span class="st">'osm'</span></span>
+<span id="cb16-8"><a href="#cb16-8"></a>                  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>Passing 10 coordinates to the Nominatim single coordinate geocoder</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Query completed in: 10.2 seconds</code></pre>
+</div>
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1"></a>t_2 <span class="ot">&lt;-</span> <span class="fu">Sys.time</span>()</span>
+<span id="cb19-2"><a href="#cb19-2"></a></span>
+<span id="cb19-3"><a href="#cb19-3"></a>t_2 <span class="sc">-</span> t_1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Time difference of 10.16572 secs</code></pre>
+</div>
+</div>
+<p>The API will return a column named <em>address</em> that give you detailed address for each coordinate.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1"></a>df_reverse_tidy <span class="sc">%&gt;%</span> </span>
+<span id="cb21-2"><a href="#cb21-2"></a>  <span class="fu">select</span>(id, </span>
+<span id="cb21-3"><a href="#cb21-3"></a>         delivery_location_latitude, </span>
+<span id="cb21-4"><a href="#cb21-4"></a>         delivery_location_longitude,</span>
+<span id="cb21-5"><a href="#cb21-5"></a>         address</span>
+<span id="cb21-6"><a href="#cb21-6"></a>         )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["id"],"name":[1],"type":["chr"],"align":["left"]},{"label":["delivery_location_latitude"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["delivery_location_longitude"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["address"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"0x4607","2":"22.76505","3":"75.91247","4":"Balaji Heights, Piplya Kumar, Indore, Juni Indore Tahsil, Indore District, Madhya Pradesh, 452001, India"},{"1":"0xb379","2":"13.04304","3":"77.81324","4":"Ganagaluru, Hosakote taluk, Bengaluru Rural, Karnataka, 562114, India"},{"1":"0x5d6d","2":"12.92426","3":"77.68840","4":"Cadence Design Systems (India) Private Limited, 21, RMZ Eco World Rd, RMZ Eco World, Bellanduru, Mahadevapura Zone, Bengaluru, Bangalore East, Bengaluru Urban, Karnataka, 560103, India"},{"1":"0x7a6a","2":"11.05367","3":"77.02649","4":"Ward 36, East Zone, Coimbatore, Coimbatore North, Coimbatore District, Tamil Nadu, 641001, India"},{"1":"0x70a2","2":"13.01279","3":"80.28998","4":"Pattinambakkam, Ward 126, Zone 9 Teynampet, Chennai, Chennai District, Tamil Nadu, 600001, India"},{"1":"0x9bb4","2":"17.46167","3":"78.43832","4":"Bharath Nagar, Ward 118 Fateh Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad, Balanagar mandal, Medchal–Malkajgiri District, Telangana, 500018, India"},{"1":"0x95b4","2":"23.47975","3":"85.44982","4":"MDR016, Ormanjhi, Ranchi District, Jharkhand, 835219, India"},{"1":"0x9eb2","2":"12.48206","3":"76.73665","4":"Doddabyadarahalli, Pandavapura taluk, Mandya District, Karnataka, India"},{"1":"0x1102","2":"17.56381","3":"78.51674","4":"Shamirpet mandal, Medchal–Malkajgiri District, Telangana, 500100, India"},{"1":"0xcdcd","2":"30.39797","3":"78.11611","4":"bashwalgaon, rajrajeshwari, Dehradun, Dehradun District, Uttarakhand, 248009, India"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+</div>
+<p>The Nominatim service has the API rate limit of 1 query per second, meaning that each row will take 1 second to process. Since we have more than 40 thousand rows, the process will take forever to finish. Therefore, if you want to use the API, you may need some strategy like using multiple devices or batch processing to speed up the process. You can the discussion related to this topic <a href="https://stackoverflow.com/questions/39522306/how-to-do-large-scale-batch-reverse-geo-coding">here</a></p>
+</section>
+<section id="offline-method-using-the-shapefile" class="level2">
+<h2 class="anchored" data-anchor-id="offline-method-using-the-shapefile">Offline Method Using the Shapefile</h2>
+<section id="spatial-filter" class="level3">
+<h3 class="anchored" data-anchor-id="spatial-filter">Spatial Filter</h3>
+<p>We can do reverse geocoding using the shapefile data we have downloaded by doing a spatial filter process where the system will determine if a location delivery is located inside the border of a certain region. Here we will use layer 2 of the Indian map data.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1"></a>df_map_2 <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="at">dsn =</span> <span class="st">"data/gadm41_IND_shp/"</span>, <span class="at">layer =</span> <span class="st">"gadm41_IND_2"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>The process require the following steps:</p>
+<ol type="1">
+<li>Converting latitude and longitude of each delivery into proper <code>sf</code> geometry point</li>
+<li>Spatial filtering using the <em>st_join()</em> function to determine whether each point to belong inside certain area using the <em>st_within</em> method</li>
+<li>Return the state name and the region name</li>
+</ol>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1"></a><span class="co"># return selected column</span></span>
+<span id="cb23-2"><a href="#cb23-2"></a>selected_column <span class="ot">&lt;-</span> df_clean <span class="sc">%&gt;%</span> </span>
+<span id="cb23-3"><a href="#cb23-3"></a>  <span class="fu">select_at</span>(<span class="fu">vars</span>(<span class="sc">!</span><span class="fu">contains</span>(<span class="st">"delivery_location"</span>))) <span class="sc">%&gt;%</span> </span>
+<span id="cb23-4"><a href="#cb23-4"></a>  <span class="fu">names</span>()</span>
+<span id="cb23-5"><a href="#cb23-5"></a></span>
+<span id="cb23-6"><a href="#cb23-6"></a><span class="co"># reverse geocoding</span></span>
+<span id="cb23-7"><a href="#cb23-7"></a>df_clean <span class="ot">&lt;-</span> df_clean <span class="sc">%&gt;%</span> </span>
+<span id="cb23-8"><a href="#cb23-8"></a>  </span>
+<span id="cb23-9"><a href="#cb23-9"></a>  <span class="co"># convert latitude and longitude into proper sf point geometry</span></span>
+<span id="cb23-10"><a href="#cb23-10"></a>  <span class="fu">st_as_sf</span>(<span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"delivery_location_longitude"</span>, <span class="st">"delivery_location_latitude"</span>),</span>
+<span id="cb23-11"><a href="#cb23-11"></a>           <span class="at">crs =</span> <span class="fu">st_crs</span>(df_map_2)</span>
+<span id="cb23-12"><a href="#cb23-12"></a>           ) <span class="sc">%&gt;%</span> </span>
+<span id="cb23-13"><a href="#cb23-13"></a>  </span>
+<span id="cb23-14"><a href="#cb23-14"></a>  <span class="co"># spatial filtering to determine the area of each point</span></span>
+<span id="cb23-15"><a href="#cb23-15"></a>  <span class="fu">st_join</span>(df_map_2, </span>
+<span id="cb23-16"><a href="#cb23-16"></a>          <span class="at">join =</span> st_within</span>
+<span id="cb23-17"><a href="#cb23-17"></a>          ) <span class="sc">%&gt;%</span> </span>
+<span id="cb23-18"><a href="#cb23-18"></a>  </span>
+<span id="cb23-19"><a href="#cb23-19"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb23-20"><a href="#cb23-20"></a>  <span class="fu">select</span>(</span>
+<span id="cb23-21"><a href="#cb23-21"></a>         geometry,</span>
+<span id="cb23-22"><a href="#cb23-22"></a>         <span class="at">state_name =</span> NAME_1,</span>
+<span id="cb23-23"><a href="#cb23-23"></a>         <span class="at">region_name =</span> NAME_2,</span>
+<span id="cb23-24"><a href="#cb23-24"></a>         <span class="fu">all_of</span>(selected_column),</span>
+<span id="cb23-25"><a href="#cb23-25"></a>         geometry</span>
+<span id="cb23-26"><a href="#cb23-26"></a>         )</span>
+<span id="cb23-27"><a href="#cb23-27"></a></span>
+<span id="cb23-28"><a href="#cb23-28"></a>df_clean <span class="sc">%&gt;%</span> </span>
+<span id="cb23-29"><a href="#cb23-29"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["geometry"],"name":[1],"type":["sf_POINT"],"align":["right"]},{"label":["state_name"],"name":[2],"type":["chr"],"align":["left"]},{"label":["region_name"],"name":[3],"type":["chr"],"align":["left"]},{"label":["id"],"name":[4],"type":["chr"],"align":["left"]},{"label":["delivery_person_id"],"name":[5],"type":["chr"],"align":["left"]},{"label":["delivery_person_age"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["delivery_person_ratings"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["restaurant_latitude"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["restaurant_longitude"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["order_date"],"name":[10],"type":["chr"],"align":["left"]},{"label":["time_orderd"],"name":[11],"type":["chr"],"align":["left"]},{"label":["time_order_picked"],"name":[12],"type":["time"],"align":["right"]},{"label":["weatherconditions"],"name":[13],"type":["chr"],"align":["left"]},{"label":["road_traffic_density"],"name":[14],"type":["chr"],"align":["left"]},{"label":["vehicle_condition"],"name":[15],"type":["dbl"],"align":["right"]},{"label":["type_of_order"],"name":[16],"type":["chr"],"align":["left"]},{"label":["type_of_vehicle"],"name":[17],"type":["chr"],"align":["left"]},{"label":["multiple_deliveries"],"name":[18],"type":["dbl"],"align":["right"]},{"label":["festival"],"name":[19],"type":["chr"],"align":["left"]},{"label":["city"],"name":[20],"type":["chr"],"align":["left"]},{"label":["time_taken_min"],"name":[21],"type":["chr"],"align":["left"]}],"data":[{"1":"<sf_POINT>","2":"Madhya Pradesh","3":"Indore","4":"0x4607","5":"INDORES13DEL02","6":"37","7":"4.9","8":"22.74505","9":"75.89247","10":"19-03-2022","11":"11:30:00","12":"11:45:00","13":"conditions Sunny","14":"High","15":"2","16":"Snack","17":"motorcycle","18":"0","19":"No","20":"Urban","21":"(min) 24","_rn_":"1"},{"1":"<sf_POINT>","2":"Karnataka","3":"Bangalore Rural","4":"0xb379","5":"BANGRES18DEL02","6":"34","7":"4.5","8":"12.91304","9":"77.68324","10":"25-03-2022","11":"19:45:00","12":"19:50:00","13":"conditions Stormy","14":"Jam","15":"2","16":"Snack","17":"scooter","18":"1","19":"No","20":"Metropolitian","21":"(min) 33","_rn_":"2"},{"1":"<sf_POINT>","2":"Karnataka","3":"Bangalore","4":"0x5d6d","5":"BANGRES19DEL01","6":"23","7":"4.4","8":"12.91426","9":"77.67840","10":"19-03-2022","11":"08:30:00","12":"08:45:00","13":"conditions Sandstorms","14":"Low","15":"0","16":"Drinks","17":"motorcycle","18":"1","19":"No","20":"Urban","21":"(min) 26","_rn_":"3"},{"1":"<sf_POINT>","2":"Tamil Nadu","3":"Coimbatore","4":"0x7a6a","5":"COIMBRES13DEL02","6":"38","7":"4.7","8":"11.00367","9":"76.97649","10":"05-04-2022","11":"18:00:00","12":"18:10:00","13":"conditions Sunny","14":"Medium","15":"0","16":"Buffet","17":"motorcycle","18":"1","19":"No","20":"Metropolitian","21":"(min) 21","_rn_":"4"},{"1":"<sf_POINT>","2":"NA","3":"NA","4":"0x70a2","5":"CHENRES12DEL01","6":"32","7":"4.6","8":"12.97279","9":"80.24998","10":"26-03-2022","11":"13:30:00","12":"13:45:00","13":"conditions Cloudy","14":"High","15":"1","16":"Snack","17":"scooter","18":"1","19":"No","20":"Metropolitian","21":"(min) 30","_rn_":"5"},{"1":"<sf_POINT>","2":"Telangana","3":"Ranga Reddy","4":"0x9bb4","5":"HYDRES09DEL03","6":"22","7":"4.8","8":"17.43167","9":"78.40832","10":"11-03-2022","11":"21:20:00","12":"21:30:00","13":"conditions Cloudy","14":"Jam","15":"0","16":"Buffet","17":"motorcycle","18":"1","19":"No","20":"Urban","21":"(min) 26","_rn_":"6"},{"1":"<sf_POINT>","2":"Jharkhand","3":"Ranchi","4":"0x95b4","5":"RANCHIRES15DEL01","6":"33","7":"4.7","8":"23.36975","9":"85.33982","10":"04-03-2022","11":"19:15:00","12":"19:30:00","13":"conditions Fog","14":"Jam","15":"1","16":"Meal","17":"scooter","18":"1","19":"No","20":"Metropolitian","21":"(min) 40","_rn_":"7"},{"1":"<sf_POINT>","2":"Karnataka","3":"Mandya","4":"0x9eb2","5":"MYSRES15DEL02","6":"35","7":"4.6","8":"12.35206","9":"76.60665","10":"14-03-2022","11":"17:25:00","12":"17:30:00","13":"conditions Cloudy","14":"Medium","15":"2","16":"Meal","17":"motorcycle","18":"1","19":"No","20":"Metropolitian","21":"(min) 32","_rn_":"8"},{"1":"<sf_POINT>","2":"Telangana","3":"Ranga Reddy","4":"0x1102","5":"HYDRES05DEL02","6":"22","7":"4.8","8":"17.43381","9":"78.38674","10":"20-03-2022","11":"20:55:00","12":"21:05:00","13":"conditions Stormy","14":"Jam","15":"0","16":"Buffet","17":"motorcycle","18":"1","19":"No","20":"Metropolitian","21":"(min) 34","_rn_":"9"},{"1":"<sf_POINT>","2":"Uttarakhand","3":"Dehradun","4":"0xcdcd","5":"DEHRES17DEL01","6":"36","7":"4.2","8":"30.32797","9":"78.04611","10":"12-02-2022","11":"21:55:00","12":"22:10:00","13":"conditions Fog","14":"Jam","15":"2","16":"Snack","17":"motorcycle","18":"3","19":"No","20":"Metropolitian","21":"(min) 46","_rn_":"10"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+</div>
+<p>We find that there is a location that has no name of area. Let’s visualize and check where most of these data is located.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1"></a>df_2 <span class="ot">&lt;-</span> df_clean <span class="sc">%&gt;%</span> </span>
+<span id="cb24-2"><a href="#cb24-2"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(region_name)) <span class="sc">%&gt;%</span> </span>
+<span id="cb24-3"><a href="#cb24-3"></a>  <span class="fu">st_as_sf</span>()</span>
+<span id="cb24-4"><a href="#cb24-4"></a></span>
+<span id="cb24-5"><a href="#cb24-5"></a>df_map_1 <span class="sc">%&gt;%</span> </span>
+<span id="cb24-6"><a href="#cb24-6"></a>  </span>
+<span id="cb24-7"><a href="#cb24-7"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb24-8"><a href="#cb24-8"></a>  <span class="fu">geom_sf</span>(<span class="at">color =</span> <span class="st">"gray"</span>, <span class="at">lwd =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb24-9"><a href="#cb24-9"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> df_2,</span>
+<span id="cb24-10"><a href="#cb24-10"></a>             </span>
+<span id="cb24-11"><a href="#cb24-11"></a>             <span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">color =</span> <span class="st">"dodgerblue"</span></span>
+<span id="cb24-12"><a href="#cb24-12"></a>             ) <span class="sc">+</span></span>
+<span id="cb24-13"><a href="#cb24-13"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb24-14"><a href="#cb24-14"></a>  </span>
+<span id="cb24-15"><a href="#cb24-15"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb24-16"><a href="#cb24-16"></a>       <span class="at">y =</span> <span class="cn">NULL</span></span>
+<span id="cb24-17"><a href="#cb24-17"></a>       )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="reverse_geocoding_in_R_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>There are 2 concentrated area where we failed to reverse geocode and both are located near the sea. We may assume that these locaton is out of the land border and located on the sea, therefore we fail to fetch their area.</p>
+<p>Let’s zoom in on the bottom right area.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1"></a>df_map_2 <span class="sc">%&gt;%</span> </span>
+<span id="cb25-2"><a href="#cb25-2"></a>  </span>
+<span id="cb25-3"><a href="#cb25-3"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb25-4"><a href="#cb25-4"></a>  <span class="fu">geom_sf</span>(<span class="at">color =</span> <span class="st">"gray"</span>, <span class="at">lwd =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb25-5"><a href="#cb25-5"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> df_2,</span>
+<span id="cb25-6"><a href="#cb25-6"></a>             </span>
+<span id="cb25-7"><a href="#cb25-7"></a>             <span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">color =</span> <span class="st">"dodgerblue"</span></span>
+<span id="cb25-8"><a href="#cb25-8"></a>             ) <span class="sc">+</span></span>
+<span id="cb25-9"><a href="#cb25-9"></a>  <span class="fu">geom_sf_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> NAME_2)) <span class="sc">+</span></span>
+<span id="cb25-10"><a href="#cb25-10"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb25-11"><a href="#cb25-11"></a>  <span class="fu">coord_sf</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="fl">79.6</span>, <span class="fl">80.5</span>),</span>
+<span id="cb25-12"><a href="#cb25-12"></a>           <span class="at">ylim =</span> <span class="fu">c</span>(<span class="fl">12.5</span>, <span class="fl">13.5</span>)</span>
+<span id="cb25-13"><a href="#cb25-13"></a>           ) <span class="sc">+</span></span>
+<span id="cb25-14"><a href="#cb25-14"></a>  </span>
+<span id="cb25-15"><a href="#cb25-15"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb25-16"><a href="#cb25-16"></a>       <span class="at">y =</span> <span class="cn">NULL</span></span>
+<span id="cb25-17"><a href="#cb25-17"></a>       )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="reverse_geocoding_in_R_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Let’s zoom in on the upper left area as well.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a>df_map_2 <span class="sc">%&gt;%</span> </span>
+<span id="cb26-2"><a href="#cb26-2"></a>  </span>
+<span id="cb26-3"><a href="#cb26-3"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb26-4"><a href="#cb26-4"></a>  <span class="fu">geom_sf</span>(<span class="at">color =</span> <span class="st">"gray"</span>, <span class="at">lwd =</span> <span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb26-5"><a href="#cb26-5"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> df_2,</span>
+<span id="cb26-6"><a href="#cb26-6"></a>             </span>
+<span id="cb26-7"><a href="#cb26-7"></a>             <span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">color =</span> <span class="st">"dodgerblue"</span></span>
+<span id="cb26-8"><a href="#cb26-8"></a>             ) <span class="sc">+</span></span>
+<span id="cb26-9"><a href="#cb26-9"></a>  <span class="fu">geom_sf_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> NAME_2)) <span class="sc">+</span></span>
+<span id="cb26-10"><a href="#cb26-10"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb26-11"><a href="#cb26-11"></a>  <span class="fu">coord_sf</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="fl">72.7</span>, <span class="dv">73</span>),</span>
+<span id="cb26-12"><a href="#cb26-12"></a>           <span class="at">ylim =</span> <span class="fu">c</span>(<span class="fl">18.8</span>, <span class="fl">19.2</span>)</span>
+<span id="cb26-13"><a href="#cb26-13"></a>           ) <span class="sc">+</span></span>
+<span id="cb26-14"><a href="#cb26-14"></a>  </span>
+<span id="cb26-15"><a href="#cb26-15"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb26-16"><a href="#cb26-16"></a>       <span class="at">y =</span> <span class="cn">NULL</span></span>
+<span id="cb26-17"><a href="#cb26-17"></a>       )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="reverse_geocoding_in_R_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Yep, it seems that our previous assumption is correct. Since the point is located outside any area, the <em>st_join()</em> fail to find the name of the region since we use the <em>st_within()</em> function to look inside each border. To mitigate this problem, we may need to determine the closest area by calculating the distance between the point and the polygon.</p>
+</section>
+<section id="distance-to-nearest-border" class="level3">
+<h3 class="anchored" data-anchor-id="distance-to-nearest-border">Distance to Nearest Border</h3>
+<p>We will do simple loop to check the closest area for each point. Since we are calculating the distance of multiple points into multiple areas, this process may take a while. To speed up the process of calculating the distance, first we will filter the region border dataset to only cover area that make sense. For example, we don’t need to include the far north region near China or Bangladesh since they are nowhere near the concentrated area. We will get the area where the centroid or the center of the border is located on our defined coordinates.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1"></a>df_selected_map <span class="ot">&lt;-</span> df_map_2 <span class="sc">%&gt;%</span> </span>
+<span id="cb27-2"><a href="#cb27-2"></a>  <span class="fu">filter</span>(</span>
+<span id="cb27-3"><a href="#cb27-3"></a>         (<span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(.))[,<span class="st">"X"</span>]  <span class="sc">%&gt;%</span> <span class="fu">between</span>(<span class="dv">72</span>, <span class="dv">74</span>) <span class="sc">|</span> <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(.))[,<span class="st">"X"</span>]  <span class="sc">%&gt;%</span> <span class="fu">between</span>(<span class="dv">79</span>, <span class="dv">81</span>)),</span>
+<span id="cb27-4"><a href="#cb27-4"></a>         <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(.))[,<span class="st">"Y"</span>] <span class="sc">%&gt;%</span> <span class="fu">between</span>(<span class="fl">18.5</span>, <span class="fl">20.5</span>) <span class="sc">|</span> <span class="fu">st_coordinates</span>(<span class="fu">st_centroid</span>(.))[,<span class="st">"Y"</span>] <span class="sc">%&gt;%</span> <span class="fu">between</span>(<span class="fl">12.5</span>, <span class="fl">13.5</span>)</span>
+<span id="cb27-5"><a href="#cb27-5"></a>         )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: There were 4 warnings in `stopifnot()`.
+The first warning was:
+ℹ In argument: `(...)`.
+Caused by warning:
+! st_centroid assumes attributes are constant over geometries
+ℹ Run `dplyr::last_dplyr_warnings()` to see the 3 remaining warnings.</code></pre>
+</div>
+</div>
+<p>You can ignore the warning message.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a><span class="fu">cat</span>(<span class="st">"Remaining region: "</span>, <span class="fu">nrow</span>(df_selected_map))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Remaining region:  16</code></pre>
+</div>
+</div>
+<p>We have filtered from 600+ regions into under 30 regions. Now we will calculated the closest region for each delivery point. This may not be the optimal or the fastest way to get the distance but I hope it is simple enough for you to understand.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a>region_name <span class="ot">&lt;-</span> df_selected_map<span class="sc">$</span>NAME_2</span>
+<span id="cb31-2"><a href="#cb31-2"></a>state_name <span class="ot">&lt;-</span> df_selected_map<span class="sc">$</span>NAME_1</span>
+<span id="cb31-3"><a href="#cb31-3"></a></span>
+<span id="cb31-4"><a href="#cb31-4"></a>df_closest_area <span class="ot">&lt;-</span> <span class="fu">map_df</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(df_2),</span>
+<span id="cb31-5"><a href="#cb31-5"></a>                          <span class="cf">function</span>(x) {</span>
+<span id="cb31-6"><a href="#cb31-6"></a>                            </span>
+<span id="cb31-7"><a href="#cb31-7"></a>                            <span class="co"># calculate the distance</span></span>
+<span id="cb31-8"><a href="#cb31-8"></a>                            point_distance <span class="ot">&lt;-</span> <span class="fu">st_distance</span>(df_2<span class="sc">$</span>geometry[x], df_selected_map)</span>
+<span id="cb31-9"><a href="#cb31-9"></a>                            </span>
+<span id="cb31-10"><a href="#cb31-10"></a>                            <span class="co"># get the closest area</span></span>
+<span id="cb31-11"><a href="#cb31-11"></a>                            close_state <span class="ot">&lt;-</span> state_name[ <span class="fu">which.min</span>(point_distance) ]</span>
+<span id="cb31-12"><a href="#cb31-12"></a>                            close_region <span class="ot">&lt;-</span> region_name[ <span class="fu">which.min</span>(point_distance) ]</span>
+<span id="cb31-13"><a href="#cb31-13"></a>                            </span>
+<span id="cb31-14"><a href="#cb31-14"></a>                            <span class="co"># return the result</span></span>
+<span id="cb31-15"><a href="#cb31-15"></a>                            <span class="fu">data.frame</span>(<span class="at">id =</span> df_2<span class="sc">$</span>id[x],</span>
+<span id="cb31-16"><a href="#cb31-16"></a>                                       close_state,</span>
+<span id="cb31-17"><a href="#cb31-17"></a>                                       close_region</span>
+<span id="cb31-18"><a href="#cb31-18"></a>                                       ) <span class="sc">%&gt;%</span> </span>
+<span id="cb31-19"><a href="#cb31-19"></a>                              <span class="fu">return</span>()</span>
+<span id="cb31-20"><a href="#cb31-20"></a>                          }</span>
+<span id="cb31-21"><a href="#cb31-21"></a>                          </span>
+<span id="cb31-22"><a href="#cb31-22"></a>                          )</span>
+<span id="cb31-23"><a href="#cb31-23"></a></span>
+<span id="cb31-24"><a href="#cb31-24"></a>df_closest_area <span class="sc">%&gt;%</span> </span>
+<span id="cb31-25"><a href="#cb31-25"></a>  <span class="fu">head</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["id"],"name":[1],"type":["chr"],"align":["left"]},{"label":["close_state"],"name":[2],"type":["chr"],"align":["left"]},{"label":["close_region"],"name":[3],"type":["chr"],"align":["left"]}],"data":[{"1":"0x70a2","2":"Tamil Nadu","3":"Chennai","_rn_":"1"},{"1":"0xb816","2":"Tamil Nadu","3":"Chennai","_rn_":"2"},{"1":"0xa1b2","2":"Tamil Nadu","3":"Chennai","_rn_":"3"},{"1":"0x5d99","2":"Tamil Nadu","3":"Thiruvallur","_rn_":"4"},{"1":"0xa258","2":"Tamil Nadu","3":"Chennai","_rn_":"5"},{"1":"0xb962","2":"Tamil Nadu","3":"Thiruvallur","_rn_":"6"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+</div>
+<p>Let’s combine this information to our initial reverse geocoding result. We also process the <em>time_taken_min</em> column into proper numeric format by extracting only the number from the string text.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1"></a>df_result <span class="ot">&lt;-</span> df_clean <span class="sc">%&gt;%</span> </span>
+<span id="cb32-2"><a href="#cb32-2"></a>  <span class="fu">left_join</span>(df_closest_area,</span>
+<span id="cb32-3"><a href="#cb32-3"></a>            <span class="at">by =</span> <span class="fu">join_by</span>(id)</span>
+<span id="cb32-4"><a href="#cb32-4"></a>            ) <span class="sc">%&gt;%</span> </span>
+<span id="cb32-5"><a href="#cb32-5"></a>  <span class="fu">mutate</span>(<span class="at">state_name =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(state_name), close_state, state_name),</span>
+<span id="cb32-6"><a href="#cb32-6"></a>         <span class="at">region_name =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(region_name), close_region, region_name),</span>
+<span id="cb32-7"><a href="#cb32-7"></a>         </span>
+<span id="cb32-8"><a href="#cb32-8"></a>         <span class="at">time_taken_min =</span> time_taken_min <span class="sc">%&gt;%</span> </span>
+<span id="cb32-9"><a href="#cb32-9"></a>           <span class="fu">str_extract</span>(<span class="st">"[0-9].*[0-9]"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb32-10"><a href="#cb32-10"></a>           <span class="fu">as.numeric</span>()</span>
+<span id="cb32-11"><a href="#cb32-11"></a>         )</span>
+<span id="cb32-12"><a href="#cb32-12"></a></span>
+<span id="cb32-13"><a href="#cb32-13"></a>df_result <span class="sc">%&gt;%</span> </span>
+<span id="cb32-14"><a href="#cb32-14"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["geometry"],"name":[1],"type":["sf_POINT"],"align":["right"]},{"label":["state_name"],"name":[2],"type":["chr"],"align":["left"]},{"label":["region_name"],"name":[3],"type":["chr"],"align":["left"]},{"label":["id"],"name":[4],"type":["chr"],"align":["left"]},{"label":["delivery_person_id"],"name":[5],"type":["chr"],"align":["left"]},{"label":["delivery_person_age"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["delivery_person_ratings"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["restaurant_latitude"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["restaurant_longitude"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["order_date"],"name":[10],"type":["chr"],"align":["left"]},{"label":["time_orderd"],"name":[11],"type":["chr"],"align":["left"]},{"label":["time_order_picked"],"name":[12],"type":["time"],"align":["right"]},{"label":["weatherconditions"],"name":[13],"type":["chr"],"align":["left"]},{"label":["road_traffic_density"],"name":[14],"type":["chr"],"align":["left"]},{"label":["vehicle_condition"],"name":[15],"type":["dbl"],"align":["right"]},{"label":["type_of_order"],"name":[16],"type":["chr"],"align":["left"]},{"label":["type_of_vehicle"],"name":[17],"type":["chr"],"align":["left"]},{"label":["multiple_deliveries"],"name":[18],"type":["dbl"],"align":["right"]},{"label":["festival"],"name":[19],"type":["chr"],"align":["left"]},{"label":["city"],"name":[20],"type":["chr"],"align":["left"]},{"label":["time_taken_min"],"name":[21],"type":["dbl"],"align":["right"]},{"label":["close_state"],"name":[22],"type":["chr"],"align":["left"]},{"label":["close_region"],"name":[23],"type":["chr"],"align":["left"]}],"data":[{"1":"<sf_POINT>","2":"Madhya Pradesh","3":"Indore","4":"0x4607","5":"INDORES13DEL02","6":"37","7":"4.9","8":"22.74505","9":"75.89247","10":"19-03-2022","11":"11:30:00","12":"11:45:00","13":"conditions Sunny","14":"High","15":"2","16":"Snack","17":"motorcycle","18":"0","19":"No","20":"Urban","21":"24","22":"NA","23":"NA","_rn_":"1"},{"1":"<sf_POINT>","2":"Karnataka","3":"Bangalore Rural","4":"0xb379","5":"BANGRES18DEL02","6":"34","7":"4.5","8":"12.91304","9":"77.68324","10":"25-03-2022","11":"19:45:00","12":"19:50:00","13":"conditions Stormy","14":"Jam","15":"2","16":"Snack","17":"scooter","18":"1","19":"No","20":"Metropolitian","21":"33","22":"NA","23":"NA","_rn_":"2"},{"1":"<sf_POINT>","2":"Karnataka","3":"Bangalore","4":"0x5d6d","5":"BANGRES19DEL01","6":"23","7":"4.4","8":"12.91426","9":"77.67840","10":"19-03-2022","11":"08:30:00","12":"08:45:00","13":"conditions Sandstorms","14":"Low","15":"0","16":"Drinks","17":"motorcycle","18":"1","19":"No","20":"Urban","21":"26","22":"NA","23":"NA","_rn_":"3"},{"1":"<sf_POINT>","2":"Tamil Nadu","3":"Coimbatore","4":"0x7a6a","5":"COIMBRES13DEL02","6":"38","7":"4.7","8":"11.00367","9":"76.97649","10":"05-04-2022","11":"18:00:00","12":"18:10:00","13":"conditions Sunny","14":"Medium","15":"0","16":"Buffet","17":"motorcycle","18":"1","19":"No","20":"Metropolitian","21":"21","22":"NA","23":"NA","_rn_":"4"},{"1":"<sf_POINT>","2":"Tamil Nadu","3":"Chennai","4":"0x70a2","5":"CHENRES12DEL01","6":"32","7":"4.6","8":"12.97279","9":"80.24998","10":"26-03-2022","11":"13:30:00","12":"13:45:00","13":"conditions Cloudy","14":"High","15":"1","16":"Snack","17":"scooter","18":"1","19":"No","20":"Metropolitian","21":"30","22":"Tamil Nadu","23":"Chennai","_rn_":"5"},{"1":"<sf_POINT>","2":"Telangana","3":"Ranga Reddy","4":"0x9bb4","5":"HYDRES09DEL03","6":"22","7":"4.8","8":"17.43167","9":"78.40832","10":"11-03-2022","11":"21:20:00","12":"21:30:00","13":"conditions Cloudy","14":"Jam","15":"0","16":"Buffet","17":"motorcycle","18":"1","19":"No","20":"Urban","21":"26","22":"NA","23":"NA","_rn_":"6"},{"1":"<sf_POINT>","2":"Jharkhand","3":"Ranchi","4":"0x95b4","5":"RANCHIRES15DEL01","6":"33","7":"4.7","8":"23.36975","9":"85.33982","10":"04-03-2022","11":"19:15:00","12":"19:30:00","13":"conditions Fog","14":"Jam","15":"1","16":"Meal","17":"scooter","18":"1","19":"No","20":"Metropolitian","21":"40","22":"NA","23":"NA","_rn_":"7"},{"1":"<sf_POINT>","2":"Karnataka","3":"Mandya","4":"0x9eb2","5":"MYSRES15DEL02","6":"35","7":"4.6","8":"12.35206","9":"76.60665","10":"14-03-2022","11":"17:25:00","12":"17:30:00","13":"conditions Cloudy","14":"Medium","15":"2","16":"Meal","17":"motorcycle","18":"1","19":"No","20":"Metropolitian","21":"32","22":"NA","23":"NA","_rn_":"8"},{"1":"<sf_POINT>","2":"Telangana","3":"Ranga Reddy","4":"0x1102","5":"HYDRES05DEL02","6":"22","7":"4.8","8":"17.43381","9":"78.38674","10":"20-03-2022","11":"20:55:00","12":"21:05:00","13":"conditions Stormy","14":"Jam","15":"0","16":"Buffet","17":"motorcycle","18":"1","19":"No","20":"Metropolitian","21":"34","22":"NA","23":"NA","_rn_":"9"},{"1":"<sf_POINT>","2":"Uttarakhand","3":"Dehradun","4":"0xcdcd","5":"DEHRES17DEL01","6":"36","7":"4.2","8":"30.32797","9":"78.04611","10":"12-02-2022","11":"21:55:00","12":"22:10:00","13":"conditions Fog","14":"Jam","15":"2","16":"Snack","17":"motorcycle","18":"3","19":"No","20":"Metropolitian","21":"46","22":"NA","23":"NA","_rn_":"10"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+</div>
+</section>
+</section>
+</section>
+<section id="data-analysis" class="level1">
+<h1>Data Analysis</h1>
+<p>Let’s do some simple analysis by looking at the number of delivery order for each region. The following is the top 10 region with most count of delivery.</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>df_out_1 <span class="ot">&lt;-</span> df_result <span class="sc">%&gt;%</span> </span>
+<span id="cb33-2"><a href="#cb33-2"></a>  <span class="fu">group_by</span>(state_name, region_name) <span class="sc">%&gt;%</span> </span>
+<span id="cb33-3"><a href="#cb33-3"></a>  <span class="fu">summarise</span>(<span class="at">count_delivery =</span> <span class="fu">n_distinct</span>(id),</span>
+<span id="cb33-4"><a href="#cb33-4"></a>            <span class="at">avg_delivery_time =</span> <span class="fu">mean</span>(time_taken_min),</span>
+<span id="cb33-5"><a href="#cb33-5"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb33-6"><a href="#cb33-6"></a>            ) <span class="sc">%&gt;%</span> </span>
+<span id="cb33-7"><a href="#cb33-7"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(count_delivery)) </span>
+<span id="cb33-8"><a href="#cb33-8"></a></span>
+<span id="cb33-9"><a href="#cb33-9"></a>df_out_1 <span class="sc">%&gt;%</span> </span>
+<span id="cb33-10"><a href="#cb33-10"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["state_name"],"name":[1],"type":["chr"],"align":["left"]},{"label":["region_name"],"name":[2],"type":["chr"],"align":["left"]},{"label":["count_delivery"],"name":[3],"type":["int"],"align":["right"]},{"label":["avg_delivery_time"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"Rajasthan","2":"Jaipur","3":"3443","4":"26.69213"},{"1":"Gujarat","2":"Surat","3":"3187","4":"26.08158"},{"1":"Maharashtra","2":"Pune","3":"3132","4":"26.34419"},{"1":"Telangana","2":"Ranga Reddy","3":"2993","4":"26.58804"},{"1":"Karnataka","2":"Bangalore","3":"2883","4":"25.71974"},{"1":"Madhya Pradesh","2":"Indore","3":"2869","4":"25.76020"},{"1":"Jharkhand","2":"Ranchi","3":"2564","4":"26.39353"},{"1":"Tamil Nadu","2":"Coimbatore","3":"2444","4":"25.23159"},{"1":"Tamil Nadu","2":"Chennai","3":"2252","4":"25.21137"},{"1":"Karnataka","2":"Mandya","3":"1883","4":"27.97823"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+</div>
+<p>What is the distribution of each <em>type_of_order</em> on each region?</p>
+<div class="cell">
+<details open="">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1"></a>df_result <span class="sc">%&gt;%</span> </span>
+<span id="cb34-2"><a href="#cb34-2"></a>  <span class="fu">group_by</span>(state_name, region_name, type_of_order) <span class="sc">%&gt;%</span> </span>
+<span id="cb34-3"><a href="#cb34-3"></a>  <span class="fu">summarise</span>(<span class="at">count_delivery =</span> <span class="fu">n_distinct</span>(id),</span>
+<span id="cb34-4"><a href="#cb34-4"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb34-5"><a href="#cb34-5"></a>            ) <span class="sc">%&gt;%</span> </span>
+<span id="cb34-6"><a href="#cb34-6"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> type_of_order,</span>
+<span id="cb34-7"><a href="#cb34-7"></a>              <span class="at">values_from =</span> count_delivery</span>
+<span id="cb34-8"><a href="#cb34-8"></a>              ) <span class="sc">%&gt;%</span> </span>
+<span id="cb34-9"><a href="#cb34-9"></a>  <span class="fu">left_join</span>(df_out_1, </span>
+<span id="cb34-10"><a href="#cb34-10"></a>            <span class="at">by =</span> <span class="fu">join_by</span>(state_name, region_name)</span>
+<span id="cb34-11"><a href="#cb34-11"></a>            ) <span class="sc">%&gt;%</span> </span>
+<span id="cb34-12"><a href="#cb34-12"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(count_delivery)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["state_name"],"name":[1],"type":["chr"],"align":["left"]},{"label":["region_name"],"name":[2],"type":["chr"],"align":["left"]},{"label":["Buffet"],"name":[3],"type":["int"],"align":["right"]},{"label":["Drinks"],"name":[4],"type":["int"],"align":["right"]},{"label":["Meal"],"name":[5],"type":["int"],"align":["right"]},{"label":["Snack"],"name":[6],"type":["int"],"align":["right"]},{"label":["count_delivery"],"name":[7],"type":["int"],"align":["right"]},{"label":["avg_delivery_time"],"name":[8],"type":["dbl"],"align":["right"]}],"data":[{"1":"Rajasthan","2":"Jaipur","3":"830","4":"882","5":"894","6":"837","7":"3443","8":"26.69213"},{"1":"Gujarat","2":"Surat","3":"772","4":"836","5":"815","6":"764","7":"3187","8":"26.08158"},{"1":"Maharashtra","2":"Pune","3":"763","4":"798","5":"792","6":"779","7":"3132","8":"26.34419"},{"1":"Telangana","2":"Ranga Reddy","3":"773","4":"698","5":"750","6":"772","7":"2993","8":"26.58804"},{"1":"Karnataka","2":"Bangalore","3":"663","4":"725","5":"749","6":"746","7":"2883","8":"25.71974"},{"1":"Madhya Pradesh","2":"Indore","3":"715","4":"721","5":"723","6":"710","7":"2869","8":"25.76020"},{"1":"Jharkhand","2":"Ranchi","3":"631","4":"637","5":"653","6":"643","7":"2564","8":"26.39353"},{"1":"Tamil Nadu","2":"Coimbatore","3":"615","4":"628","5":"594","6":"607","7":"2444","8":"25.23159"},{"1":"Tamil Nadu","2":"Chennai","3":"546","4":"580","5":"551","6":"575","7":"2252","8":"25.21137"},{"1":"Karnataka","2":"Mandya","3":"473","4":"461","5":"469","6":"480","7":"1883","8":"27.97823"},{"1":"Maharashtra","2":"Mumbai Suburban","3":"461","4":"441","5":"462","6":"506","7":"1870","8":"25.47005"},{"1":"Gujarat","2":"Vadodara","3":"414","4":"383","5":"378","6":"401","7":"1576","8":"26.66244"},{"1":"Karnataka","2":"Mysore","3":"284","4":"271","5":"291","6":"283","7":"1129","8":"22.76262"},{"1":"Tamil Nadu","2":"Thiruvallur","3":"235","4":"232","5":"191","6":"235","7":"893","8":"29.25308"},{"1":"Maharashtra","2":"Thane","3":"217","4":"219","5":"200","6":"217","7":"853","8":"27.74678"},{"1":"Tamil Nadu","2":"Tiruppur","3":"165","4":"189","5":"187","6":"185","7":"726","8":"29.86364"},{"1":"Uttar Pradesh","2":"Unnao","3":"149","4":"145","5":"162","6":"174","7":"630","8":"26.57937"},{"1":"Kerala","2":"Ernakulam","3":"152","4":"158","5":"155","6":"159","7":"624","8":"26.86538"},{"1":"Punjab","2":"Ludhiana","3":"139","4":"148","5":"135","6":"146","7":"568","8":"25.69718"},{"1":"Maharashtra","2":"Aurangabad","3":"150","4":"116","5":"138","6":"151","7":"555","8":"26.85405"},{"1":"Goa","2":"North Goa","3":"142","4":"132","5":"144","6":"135","7":"553","8":"26.15009"},{"1":"West Bengal","2":"North 24 Parganas","3":"113","4":"122","5":"141","6":"119","7":"495","8":"27.77980"},{"1":"Madhya Pradesh","2":"Bhopal","3":"116","4":"103","5":"135","6":"124","7":"478","8":"26.71967"},{"1":"Uttar Pradesh","2":"Firozabad","3":"100","4":"97","5":"97","6":"124","7":"418","8":"27.83493"},{"1":"Uttar Pradesh","2":"Allahabad","3":"108","4":"91","5":"98","6":"96","7":"393","8":"28.93384"},{"1":"Uttarakhand","2":"Dehradun","3":"100","4":"95","5":"96","6":"100","7":"391","8":"25.54220"},{"1":"Karnataka","2":"Bangalore Rural","3":"81","4":"85","5":"74","6":"72","7":"312","8":"29.13141"},{"1":"Madhya Pradesh","2":"Dewas","3":"61","4":"76","5":"72","6":"81","7":"290","8":"29.63793"},{"1":"Maharashtra","2":"Mumbai City","3":"74","4":"65","5":"72","6":"66","7":"277","8":"23.04693"},{"1":"Telangana","2":"Hyderabad","3":"44","4":"44","5":"46","6":"54","7":"188","8":"23.93617"},{"1":"Uttar Pradesh","2":"Kaushambi","3":"48","4":"49","5":"41","6":"37","7":"175","8":"23.97143"},{"1":"Maharashtra","2":"Palghar","3":"43","4":"43","5":"42","6":"45","7":"173","8":"28.73410"},{"1":"West Bengal","2":"Kolkata","3":"38","4":"34","5":"33","6":"44","7":"149","8":"22.18792"},{"1":"Uttar Pradesh","2":"Agra","3":"32","4":"26","5":"34","6":"40","7":"132","8":"22.84091"},{"1":"Uttarakhand","2":"Tehri Garhwal","3":"33","4":"23","5":"17","6":"28","7":"101","8":"30.88119"},{"1":"Punjab","2":"Shahid Bhagat Singh Nagar","3":"22","4":"25","5":"25","6":"28","7":"100","8":"29.13000"},{"1":"Goa","2":"South Goa","3":"16","4":"14","5":"13","6":"13","7":"56","8":"25.57143"},{"1":"West Bengal","2":"South 24 Parganas","3":"11","4":"16","5":"14","6":"15","7":"56","8":"24.96429"},{"1":"Uttar Pradesh","2":"Kanpur Nagar","3":"15","4":"7","5":"11","6":"13","7":"46","8":"20.47826"},{"1":"Punjab","2":"Jalandhar","3":"4","4":"6","5":"4","6":"5","7":"19","8":"27.05263"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+</div>
+</section>
+<section id="summary" class="level1">
+<h1>Summary</h1>
+<p>Reverse geocoding is essential if you want to understand the customer behavior on particular region. For example, as a food delivery service or a food merchant offers or partners with a delivery service, you want to know where most of your customers are located based on their delivery addresses. Reverse geocoding can be achieved using 2 methods:</p>
+<ul>
+<li>Online method with API via <code>tidygeocoder</code> package</li>
+<li>Offline method with shapefile map data</li>
+</ul>
+<p>Both are useful and can give us great result. The drawback of using online method is that we are limited by the API usage rate and generally take longer time to process a lot of data, while the drawback of using the offline method is that we require correct and proper map data and be wary of data located outside the border.</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
