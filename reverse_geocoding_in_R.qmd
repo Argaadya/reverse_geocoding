@@ -241,9 +241,9 @@ The Nominatim service has the API rate limit of 1 query per second, meaning that
 
 ## Offline Method Using the Shapefile
 
-### Spatial Filter
+### Spatial Join
 
-We can do reverse geocoding using the shapefile data we have downloaded by doing a spatial filter process where the system will determine if a location delivery is located inside the border of a certain region. Here we will use layer 2 of the Indian map data.
+We can do reverse geocoding using the shapefile data we have downloaded by doing a spatial join process where the system will determine if a location delivery is located inside the border of a certain region. Here we will use layer 2 of the Indian map data.
 
 ```{r results='hide'}
 df_map_2 <- st_read(dsn = "data/gadm41_IND_shp/", layer = "gadm41_IND_2")
@@ -252,7 +252,7 @@ df_map_2 <- st_read(dsn = "data/gadm41_IND_shp/", layer = "gadm41_IND_2")
 The process require the following steps:
 
 1. Converting latitude and longitude of each delivery into proper `sf` geometry point
-2. Spatial filtering using the *st_join()* function to determine whether each point to belong inside certain area using the *st_within* method
+2. Spatial join using the *st_join()* function to determine whether each point to belong inside certain area using the *st_within* method
 3. Return the state name and the region name
 
 ```{r}
@@ -269,7 +269,7 @@ df_clean <- df_clean %>%
            crs = st_crs(df_map_2)
            ) %>% 
   
-  # spatial filtering to determine the area of each point
+  # spatial join to determine the area of each point
   st_join(df_map_2, 
           join = st_within
           ) %>% 
