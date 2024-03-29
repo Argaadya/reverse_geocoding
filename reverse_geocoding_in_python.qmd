@@ -275,7 +275,7 @@ p_2 = plt.scatter(selected_df['delivery_location_longitude'],
                   c = 'red', s = 2
                   )
 
-# Annotate the area of each area
+# Annotate the name of each area
 for idx, row in filtered_gdf.iterrows():
     area = row['geometry'].area  # Calculate area
     plt.annotate(text= row['NAME_2'], xy=(row['geometry'].centroid.x, row['geometry'].centroid.y), 
@@ -298,7 +298,7 @@ p_2 = plt.scatter(selected_df['delivery_location_longitude'],
                   c = 'red', s = 2
                   )
 
-# Annotate the area of each area
+# Annotate the name of each area
 for idx, row in filtered_gdf.iterrows():
     area = row['geometry'].area  # Calculate area
     plt.annotate(text= row['NAME_2'], xy=(row['geometry'].centroid.x, row['geometry'].centroid.y), 
