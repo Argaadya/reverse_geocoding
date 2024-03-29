@@ -1,0 +1,393 @@
+---
+title: "Reverse Geocoding: Acquiring Address from Location Coordinates"
+author: "Arga Adyatama"
+date: 2024-03-23
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: show
+    code-line-numbers: true
+    theme: journal
+editor: visual
+---
+
+# Introduction
+
+**Geocoding** is the process of converting addresses into geographic coordinates (latitude and longitude). You see their familiar form whenever you search for your local restaurant or place to visit. There is also something called **Reverse Geocoding** where you want to convert latitude and longitude into readable addresses. Both are equally important, especially for industries related to moving goods or people, e.g. food delivery service or taxi service. Reverse geocoding is essential if you want to understand the underlying pattern of customer behavior. For example, as a food delivery service or a food merchant offers or partners with a delivery service, you want to know where most of your customers are located based on their delivery addresses.
+
+There are several alternatives to do reverse geocoding. In this post we will explore 2 options on doing reverse geocoding and see their pros and cons:
+
+-   Using API via `geopy` package
+-   Using shapefile map data
+
+All source code and dataset for this article are provided on [my github repo](https://github.com/Argaadya/reverse_geocoding).
+
+# Library
+
+```{python}
+# Data Wrangling
+import pandas as pd
+import numpy as np
+from janitor import clean_names
+
+# time of execution
+import time
+
+# Visualization
+import matplotlib.pyplot as plt
+
+# Geospatial
+import geopandas
+
+# Geocoding API
+from geopy.geocoders import Nominatim
+
+pd.set_option('display.float_format', '{:.10f}'.format)
+pd.set_option('display.max_columns', None)
+```
+
+# Data Understanding
+
+We will use data from [Food Delivery Dataset](https://www.kaggle.com/datasets/gauravmalik26/food-delivery-dataset) acquired from Kaggle. A quick sampling of the address coordinates inform me that the delivery service is located in India. The following is the description about the data.
+
+> Food delivery is a courier service in which a restaurant, store, or independent food-delivery company delivers food to a customer. An order is typically made either through a restaurant or grocer's website or mobile app, or through a food ordering company. The delivered items can include entrees, sides, drinks, desserts, or grocery items and are typically delivered in boxes or bags. The delivery person will normally drive a car, but in bigger cities where homes and restaurants are closer together, they may use bikes or motorized scooters.
+
+## Read Data
+
+First we will read and inspect the delivery data.
+
+```{python}
+df_delivery = pd.read_csv("data/train.csv")
+df_delivery = clean_names(df_delivery)
+
+df_delivery.info()
+```
+
+Data Description:
+
+-   `id`: The order id
+-   `delivery_person_id`: The id of the delivery person
+-   `delivery_person_id`: The age of the delivery person
+-   `delivery_person_ratings`: The overall performance rating of the delivery person
+-   `restautrant_latitude`: Latitude coordinate of the restaurant
+-   `restautrant_longitude`: Longitude coordinate of the restaurant
+-   `delivery_location_latitude`: Latitude coordinate of the delivery location
+-   `delivery_location_longitude`: Longitude coordinate of the delivery location
+-   `order_date`: Longitude coordinate of the delivery location
+-   `time_orderd`: Time of the delivery order
+-   `time_order_picked`: Time the delivery is picked by the delivery person
+-   `weatherconditions`: The weather condition during delivery process
+-   `road_traffic_density`: The traffic density during delivery process
+-   `vehicle_condition`: The condition of the vehicle
+-   `type_of_order`: Type of the order (Snacks, Drinks, Buffet, Meal)
+-   `type_of_vehicle`: Type of the vehicle
+-   `multiple_deliveries`: Flagging code of multiple deliveries status
+-   `festival`: Flagging if the delivery happened during festival
+-   `city`: The category of the city (Urban, Metropolitan, Semi-Urban)
+-   `time_taken_min`: Duration of deliveries
+
+## Inspect Data
+
+Let's first check if the data has duplicated order id. If there are more than one observation for an order id we may want to inspect the data further.
+
+```{python}
+df_delivery.groupby('id').agg({'delivery_person_id': 'count'}).sort_values('delivery_person_id', ascending = False).head()
+```
+
+There is no duplicated order id. Next we check the summary of the data to see if there is anything unusual, especially for the delivery location coordinates.
+
+```{python}
+df_delivery[['delivery_location_latitude', 'delivery_location_longitude']].describe()
+```
+
+Based on the summary, there may some data with weird coordinates that has close to 0 latitude and 0 longitude (if you search them, it is located on the west side of Africa). We will try to visualize all of the data to better see the distribution of the delivery locations.
+
+# Visualize Geospatial Data
+
+## Shapefile Data
+
+To have clear visualization of a geospatial data, we will need a shapefile that consists of polygons that represent the line border of a country or a region. We will use the Indian map data acquired from [GADM](https://gadm.org/download_country.html). You can download the *shapefile* format and unzip them. The shapefile of the India country will give you several layers of border comprising of the national border, the state border, and go more detailed into city or regional border.
+
+The following code will read the layer 1 or the state level border using the *st_read()* function from the `sf` package.
+
+```{python results='hide'}
+df_map_1 = geopandas.read_file(filename= "data/gadm41_IND_shp/gadm41_IND_1.shp")
+```
+
+## Data Visualization
+
+To visualize the spatial data, we simply plot the geopandas dataframe of the map and add the scatterplot from the delivery location coordinates.
+
+```{python}
+p_1 = df_map_1.plot(color = "lightgray")
+
+p_2 = plt.scatter(df_delivery['delivery_location_longitude'], 
+                  df_delivery['delivery_location_latitude'],
+                  c = 'red', s = 2
+                  )
+
+plt.show()
+plt.close()
+```
+
+Based on the plot, we can see that anomalies only happen at the coordinates around 0 latitude and 0 longitude, let's check these further.
+
+```{python}
+df_1 = df_delivery[ df_delivery.delivery_location_longitude < 60][['delivery_location_longitude', 'delivery_location_latitude']]
+  
+print("Number of anomalies: ", df_1.shape[0])
+
+df_1.describe()
+```
+
+There are around 3600 rows with anomaly location. Perhaps this was a faulty location where the system failed to properly locate the customer location. We can get rid of them for now.
+
+```{python}
+df_clean = df_delivery[ df_delivery.delivery_location_latitude > 10]
+```
+
+Let's redraw our map.
+
+```{python}
+p_1 = df_map_1.plot(color = "lightgray")
+
+p_2 = plt.scatter(df_clean['delivery_location_longitude'], 
+                  df_clean['delivery_location_latitude'],
+                  c = 'red', s = 2
+                  )
+
+plt.show()
+plt.close()
+```
+
+Here we can see that the customers are concentrated into certain areas. We want to know the name of the area, perhaps in a region or even district level using reverse geocoding.
+
+# Reverse Geocoding
+
+Reverse geocoding can be achieved using 2 methods:
+
+-   Online method with API via `geopy` package
+-   Offline method with shapefile map data
+
+## Online method with `geopy`
+
+Online method require us to connect with the API from a geocoding service. One of them is the `geopy` package. You can read more about the package documentation [here](https://geopy.readthedocs.io/en/stable/).
+
+The online method is a great alternative if you want the correct and proper address based on up to date data. However, it has a drawback to consider. Since we are using API access, we rely on the API usage rate limit and some services require us to create an API key beforehand. The following is the example of using the **Nominatim** service with the Open Street Map data to reverse geocode the first 10 rows of our delivery data.
+
+```{python}
+# Initialize Nominatim geocoder
+geolocator = Nominatim(user_agent="reverse_geocoding")
+
+# Function to perform reverse geocoding
+def reverse_geocode(row):
+    location = geolocator.reverse((row['delivery_location_latitude'], row['delivery_location_longitude']))
+    return location.address
+```
+
+```{python}
+df_first_10 = df_clean.head(10).copy()
+
+t_1 = time.time()
+
+df_first_10['address'] = df_first_10.apply(reverse_geocode, axis = 1)
+
+t_2 = time.time()
+
+print("Elapsed time:", t_2 - t_1, "seconds")
+```
+
+The API will return a column named *address* that give you detailed address for each coordinate.
+
+```{python}
+df_first_10[['id', 'address']]
+```
+
+The Nominatim service has the API rate limit of 1 query per second, meaning that each row will take 1 second to process. Since we have more than 40 thousand rows, the process will take forever to finish. Therefore, if you want to use the API, you may need some strategy like using multiple devices or batch processing to speed up the process. You can the discussion related to this topic [here](https://stackoverflow.com/questions/39522306/how-to-do-large-scale-batch-reverse-geo-coding)
+
+## Offline Method Using the Shapefile
+
+### Spatial Join
+
+We can do reverse geocoding using the shapefile data we have downloaded by doing a spatial join process where the system will determine if a location delivery is located inside the border of a certain region. Here we will use layer 2 of the Indian map data.
+
+```{python results='hide'}
+df_map_2 = geopandas.read_file(filename= "data/gadm41_IND_shp/gadm41_IND_2.shp")
+
+p_1 = df_map_2.plot(color = "lightgray")
+
+plt.show()
+plt.close()
+```
+
+The process require the following steps:
+
+1.  Converting latitude and longitude of each delivery into proper geometry point
+2.  Spatial join to determine whether each point to belong inside certain area
+3.  Return the state name and the region name
+
+```{python}
+# convert coordinate into geometry point
+gdf_clean = geopandas.GeoDataFrame(df_clean, 
+                                   geometry = geopandas.points_from_xy(df_clean.delivery_location_longitude, df_clean.delivery_location_latitude),
+                                   crs = df_map_2.crs
+                                   )
+                                   
+# spatial join with the map
+gdf_clean = gdf_clean.sjoin(df_map_2, how = "left", predicate="within")
+
+gdf_clean = gdf_clean[['id', 'NAME_1', 'NAME_2', 'geometry', 'time_taken_min_', 'type_of_order', 'delivery_location_longitude', 'delivery_location_latitude']]
+gdf_clean.rename({'NAME_1': 'state', 'NAME_2' : 'region'}, axis =1  , inplace = True)
+
+gdf_clean.head(10)
+```
+
+We find that there is a location that has no name of area. Let's visualize and check where most of these data is located.
+
+```{python}
+gdf_blank_area = gdf_clean[ gdf_clean.state.isnull() ].reset_index(drop = True)
+
+p_1 = df_map_2.plot(color = "lightgray")
+
+p_2 = plt.scatter(gdf_blank_area['delivery_location_longitude'], 
+                  gdf_blank_area['delivery_location_latitude'],
+                  c = 'red', s = 2
+                  )
+
+plt.show()
+plt.close()
+```
+
+There are 2 concentrated area where we failed to reverse geocode and both are located near the sea. We may assume that these locaton is out of the land border and located on the sea, therefore we fail to fetch their area.
+
+Let's zoom in on the bottom right area.
+
+```{python}
+filtered_gdf = df_map_2.cx[79.6:80.5, 12.5:13.5]
+selected_df = gdf_blank_area[gdf_blank_area['delivery_location_latitude'] < 15]
+
+p_1 = filtered_gdf.plot(color = "lightgray")
+
+p_2 = plt.scatter(selected_df['delivery_location_longitude'], 
+                  selected_df['delivery_location_latitude'],
+                  c = 'red', s = 2
+                  )
+
+# Annotate the area of each area
+for idx, row in filtered_gdf.iterrows():
+    area = row['geometry'].area  # Calculate area
+    plt.annotate(text= row['NAME_2'], xy=(row['geometry'].centroid.x, row['geometry'].centroid.y), 
+                 color='black', fontsize = 8, ha = 'right')
+
+plt.show()
+plt.close()
+```
+
+Let's zoom in on the upper left area as well.
+
+```{python}
+filtered_gdf = df_map_2.cx[72.7:73, 18.8:19.2]
+selected_df = gdf_blank_area[gdf_blank_area['delivery_location_latitude'] > 15]
+
+p_1 = filtered_gdf.plot(color = "lightgray")
+
+p_2 = plt.scatter(selected_df['delivery_location_longitude'], 
+                  selected_df['delivery_location_latitude'],
+                  c = 'red', s = 2
+                  )
+
+# Annotate the area of each area
+for idx, row in filtered_gdf.iterrows():
+    area = row['geometry'].area  # Calculate area
+    plt.annotate(text= row['NAME_2'], xy=(row['geometry'].centroid.x, row['geometry'].centroid.y), 
+                 color='black', fontsize = 8)
+
+
+plt.show()
+plt.close()
+```
+
+Yep, it seems that our previous assumption is correct. Since the point is located outside any area, the spatial join fail to find the name of the region. To mitigate this problem, we may need to determine the closest area by calculating the distance between the point and the polygon.
+
+### Distance to Nearest Border
+
+We will do simple loop to check the closest area for each point. Since we are calculating the distance of multiple points into multiple areas, this process may take a while. To speed up the process of calculating the distance, first we will filter the region border dataset to only cover area that make sense. For example, we don't need to include the far north region near China or Bangladesh since they are nowhere near the concentrated area. We will get the area where the centroid or the center of the border is located on our defined coordinates.
+
+```{python}
+# filter area to calculate distance
+df_selected_map_1 = df_map_2.cx[72:74, 18.5:20.5]
+df_selected_map_2 = df_map_2.cx[79:81, 12.5:13.5]
+
+df_selected_map = pd.concat([df_selected_map_1, df_selected_map_2]).reset_index()
+
+print("Remaining region: " + str(df_selected_map.shape[0]))
+```
+
+We have filtered from 600+ regions into under 30 regions. Now we will calculated the closest region for each delivery point. This may not be the optimal or the fastest way to get the distance but I hope it is simple enough for you to understand.
+
+
+```{python}
+region_name = df_selected_map["NAME_2"]
+state_name = df_selected_map["NAME_1"]
+
+closest_region = [ ]
+closest_state = [ ]
+
+# get closest area 
+for i in range(gdf_blank_area.shape[0]):
+  calculated_distance = df_selected_map['geometry'].apply(lambda x: gdf_blank_area['geometry'][i].distance(x))
+  min_distance = calculated_distance.idxmin()
+  closest_state.append(state_name[min_distance])
+  closest_region.append(region_name[min_distance])
+
+gdf_blank_area['state'] = closest_state
+gdf_blank_area['region'] = closest_region
+
+gdf_blank_area.head()
+```
+
+Let's combine this information to our initial reverse geocoding result. We also process the *time_taken_min* column into proper numeric format by extracting only the number from the string text.
+
+```{python}
+df_result = gdf_clean.copy()
+df_result.dropna(subset = ['state'], inplace = True)
+df_result = pd.concat([df_result, gdf_blank_area])
+
+df_result['time_taken_min_'] = df_result['time_taken_min_'].str.extract(r'([0-9].*)').astype('int')
+
+df_result.head()
+```
+
+# Data Analysis
+
+Let's do some simple analysis by looking at the number of delivery order for each region. The following is the top 10 region with most count of delivery.
+
+```{python}
+df_1 = df_result.groupby(['state', 'region']).agg({'id': 'nunique', 'time_taken_min_': 'mean'}).reset_index()
+df_1.rename({'id': 'count_delivery', 'avg_delivery_time': 'time_taken_min'}, axis = 1, inplace =True)
+df_1 = df_1.sort_values("count_delivery", ascending = False)
+
+df_1.head(10)
+```
+
+What is the distribution of each *type_of_order* on each region?
+
+```{python}
+df_2 = df_result.groupby(['state', 'region', 'type_of_order']).agg({'id': 'nunique'}).reset_index()
+df_2.rename({'id': 'count_delivery'}, axis = 1, inplace =True)
+
+df_2 = df_2.pivot(index = ['state', 'region'], columns = 'type_of_order', values = 'count_delivery').reset_index()
+
+df_1.merge(df_2, how = 'left', on = ['state', 'region']).head(10)
+```
+
+# Summary
+
+Reverse geocoding is essential if you want to understand the customer behavior on particular region. For example, as a food delivery service or a food merchant offers or partners with a delivery service, you want to know where most of your customers are located based on their delivery addresses. Reverse geocoding can be achieved using 2 methods:
+
+-   Online method with API via `geopy` package
+-   Offline method with shapefile map data
+
+Both are useful and can give us great result. The drawback of using online method is that we are limited by the API usage rate and generally take longer time to process a lot of data, while the drawback of using the offline method is that we require correct and proper map data and be wary of data located outside the border.
